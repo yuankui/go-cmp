@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"bufio"
+	"fmt"
+	"github.com/yuankui/go-cmp/worker"
 )
 
 /**
@@ -15,9 +17,8 @@ TODO
 func main() {
 	urls := os.Args[1:]
 	reader := bufio.NewReader(os.Stdin)
-	requestChan := make(chan string, 300)
 
-	NewWorkerGroup(10, urls, )
+	group := worker.NewWorkerGroup(10, urls, )
 	for {
 		line, _, err := reader.ReadLine()
 
@@ -26,42 +27,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		requestChan <- line
+		group.AddTask(line)
 	}
 
-}
-
-type WorkerGroup struct {
-	urls  []string
-	lines chan []byte
-}
-
-func NewWorkerGroup(num int, urls chan string) {
-	workers := WorkerGroup{urls:urls, lines:make(chan []byte, 100)}
-	workers.initWorkers(num)
-}
-
-func (this*WorkerGroup) AddTask(line []byte) {
-	this.lines <- line
-}
-
-func (this*WorkerGroup) initWorkers(n int) {
-	for i := 0; i < n; i++ {
-		go this.worker()
+	for line := range group.OutChan {
+		fmt.Println(line)
 	}
-}
-
-func (this*WorkerGroup) worker() {
-	for {
-		for str := range this.lines {
-			this.processLine(str)
-		}
-	}
-}
-func (this*WorkerGroup) processLine(line []byte) string {
-	for url := range this.urls {
-		println(url)
-	}
-
-	return ""
 }
