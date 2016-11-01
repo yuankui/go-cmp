@@ -3,6 +3,8 @@ package worker
 import (
 	"net/http"
 	"bytes"
+	"io"
+	"encoding/json"
 )
 
 type WorkerGroup struct {
@@ -14,7 +16,7 @@ type WorkerGroup struct {
 func NewWorkerGroup(num int, urls  []string) *WorkerGroup {
 	workers := WorkerGroup{urls:urls, lines:make(chan []byte, 100)}
 	workers.initWorkers(num)
-	return workers
+	return &workers
 }
 
 func (this*WorkerGroup) AddTask(line []byte) {
@@ -34,8 +36,25 @@ func (this*WorkerGroup) worker() {
 }
 
 func (this*WorkerGroup) processLine(line []byte) string {
-	for url := range this.urls {
+	ret := make([]*Result, len(this.urls))
+	for _, url := range this.urls {
 		resp, _ := http.Post(url, "application/json", bytes.NewBufferString(string(line)))
-		resp.Status
+		body := make([]byte, resp.ContentLength)
+		io.ReadFull(resp.Body, body)
+		res := NewResult(url, resp.StatusCode, string(body))
+		res.url = url
+		ret = append(ret, res)
 	}
+	bytes, _ := json.Marshal(ret)
+	return string(bytes)
+}
+
+type Result struct {
+	url     string
+	status  int
+	content string
+}
+
+func NewResult(url string, status int, content string) *Result {
+	return &Result{url:url, status:status,content:content}
 }
